@@ -1,33 +1,11 @@
-import Redis from 'ioredis';
+import { kv } from '@vercel/kv';
 import { DAILY_LEDGER } from '@/data/scheduleData';
 
 const SCHEDULE_KEY = 'cashflow:schedule';
 
-// Singleton Redis client
-let redisClient: Redis | null = null;
-
-// Initialize Redis client from REDIS_URL
-function getRedisClient(): Redis | null {
-  if (redisClient) {
-    return redisClient;
-  }
-
-  const redisUrl = process.env.REDIS_URL;
-
-  if (!redisUrl) {
-    return null;
-  }
-
-  try {
-    redisClient = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
-    return redisClient;
-  } catch (error) {
-    console.error('Failed to create Redis client:', error);
-    return null;
-  }
+// Check if KV is configured
+function isKVConfigured(): boolean {
+  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
 export interface PersistedDayData {
@@ -55,40 +33,36 @@ export function getDefaultSchedule(): PersistedSchedule {
   };
 }
 
-// Get schedule from Redis (or return default if not set)
+// Get schedule from KV (or return default if not set)
 export async function getSchedule(): Promise<PersistedSchedule> {
-  const redis = getRedisClient();
-
-  if (!redis) {
+  if (!isKVConfigured()) {
     return getDefaultSchedule();
   }
 
   try {
-    const data = await redis.get(SCHEDULE_KEY);
-    if (!data) {
+    const schedule = await kv.get<PersistedSchedule>(SCHEDULE_KEY);
+    if (!schedule) {
       return getDefaultSchedule();
     }
-    return JSON.parse(data) as PersistedSchedule;
+    return schedule;
   } catch (error) {
-    console.error('Error fetching schedule from Redis:', error);
+    console.error('Error fetching schedule from KV:', error);
     return getDefaultSchedule();
   }
 }
 
-// Save schedule to Redis
+// Save schedule to KV
 export async function saveSchedule(schedule: PersistedSchedule): Promise<void> {
-  const redis = getRedisClient();
-
-  if (!redis) {
-    console.warn('Redis not configured, skipping save');
+  if (!isKVConfigured()) {
+    console.warn('KV not configured, skipping save');
     return;
   }
 
   try {
     schedule.lastUpdated = new Date().toISOString();
-    await redis.set(SCHEDULE_KEY, JSON.stringify(schedule));
+    await kv.set(SCHEDULE_KEY, schedule);
   } catch (error) {
-    console.error('Error saving schedule to Redis:', error);
+    console.error('Error saving schedule to KV:', error);
     throw error;
   }
 }
