@@ -1,11 +1,24 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { DAILY_LEDGER } from '@/data/scheduleData';
 
 const SCHEDULE_KEY = 'cashflow:schedule';
 
-// Check if KV is configured
-function isKVConfigured(): boolean {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+// Initialize Redis client - supports both REDIS_URL and KV_REST_API_URL
+function getRedisClient(): Redis | null {
+  // Try KV REST API first (Vercel KV)
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    return new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
+  }
+
+  // Fall back to REDIS_URL (Upstash Redis)
+  if (process.env.REDIS_URL) {
+    return Redis.fromEnv();
+  }
+
+  return null;
 }
 
 export interface PersistedDayData {
@@ -33,36 +46,40 @@ export function getDefaultSchedule(): PersistedSchedule {
   };
 }
 
-// Get schedule from KV (or return default if not set)
+// Get schedule from Redis (or return default if not set)
 export async function getSchedule(): Promise<PersistedSchedule> {
-  if (!isKVConfigured()) {
+  const redis = getRedisClient();
+
+  if (!redis) {
     return getDefaultSchedule();
   }
 
   try {
-    const schedule = await kv.get<PersistedSchedule>(SCHEDULE_KEY);
+    const schedule = await redis.get<PersistedSchedule>(SCHEDULE_KEY);
     if (!schedule) {
       return getDefaultSchedule();
     }
     return schedule;
   } catch (error) {
-    console.error('Error fetching schedule from KV:', error);
+    console.error('Error fetching schedule from Redis:', error);
     return getDefaultSchedule();
   }
 }
 
-// Save schedule to KV
+// Save schedule to Redis
 export async function saveSchedule(schedule: PersistedSchedule): Promise<void> {
-  if (!isKVConfigured()) {
-    console.warn('KV not configured, skipping save');
+  const redis = getRedisClient();
+
+  if (!redis) {
+    console.warn('Redis not configured, skipping save');
     return;
   }
 
   try {
     schedule.lastUpdated = new Date().toISOString();
-    await kv.set(SCHEDULE_KEY, schedule);
+    await redis.set(SCHEDULE_KEY, schedule);
   } catch (error) {
-    console.error('Error saving schedule to KV:', error);
+    console.error('Error saving schedule to Redis:', error);
     throw error;
   }
 }
