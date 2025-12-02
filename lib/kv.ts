@@ -1,24 +1,33 @@
-import { Redis } from '@upstash/redis';
+import Redis from 'ioredis';
 import { DAILY_LEDGER } from '@/data/scheduleData';
 
 const SCHEDULE_KEY = 'cashflow:schedule';
 
-// Initialize Redis client - supports both REDIS_URL and KV_REST_API_URL
+// Singleton Redis client
+let redisClient: Redis | null = null;
+
+// Initialize Redis client from REDIS_URL
 function getRedisClient(): Redis | null {
-  // Try KV REST API first (Vercel KV)
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    return new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
+  if (redisClient) {
+    return redisClient;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    return null;
+  }
+
+  try {
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
     });
+    return redisClient;
+  } catch (error) {
+    console.error('Failed to create Redis client:', error);
+    return null;
   }
-
-  // Fall back to REDIS_URL (Upstash Redis)
-  if (process.env.REDIS_URL) {
-    return Redis.fromEnv();
-  }
-
-  return null;
 }
 
 export interface PersistedDayData {
@@ -55,11 +64,11 @@ export async function getSchedule(): Promise<PersistedSchedule> {
   }
 
   try {
-    const schedule = await redis.get<PersistedSchedule>(SCHEDULE_KEY);
-    if (!schedule) {
+    const data = await redis.get(SCHEDULE_KEY);
+    if (!data) {
       return getDefaultSchedule();
     }
-    return schedule;
+    return JSON.parse(data) as PersistedSchedule;
   } catch (error) {
     console.error('Error fetching schedule from Redis:', error);
     return getDefaultSchedule();
@@ -77,7 +86,7 @@ export async function saveSchedule(schedule: PersistedSchedule): Promise<void> {
 
   try {
     schedule.lastUpdated = new Date().toISOString();
-    await redis.set(SCHEDULE_KEY, schedule);
+    await redis.set(SCHEDULE_KEY, JSON.stringify(schedule));
   } catch (error) {
     console.error('Error saving schedule to Redis:', error);
     throw error;
