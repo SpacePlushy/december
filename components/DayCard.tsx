@@ -27,9 +27,9 @@ export default function DayCard({ dayData, onClick }: DayCardProps) {
     <button
       onClick={onClick}
       className={`
-        relative p-3 rounded-xl border transition-all duration-200
-        hover:scale-[1.03] hover:shadow-lg hover:shadow-slate-900/50
-        active:scale-[0.98] cursor-pointer text-left w-full
+        relative p-4 rounded-xl border transition-all duration-200
+        hover:scale-[1.02] hover:shadow-lg hover:shadow-slate-900/50
+        active:scale-[0.98] cursor-pointer text-left w-full min-h-[120px]
         ${statusStyles[status]}
         ${isToday ? 'ring-2 ring-white/30' : ''}
       `}
@@ -38,28 +38,28 @@ export default function DayCard({ dayData, onClick }: DayCardProps) {
         <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-pulse" />
       )}
 
-      <div className="flex items-start justify-between mb-2">
-        <span className="text-lg font-bold text-white">{day}</span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase ${badgeStyles[status]}`}>
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-2xl font-bold text-white">{day}</span>
+        <span className={`text-[10px] px-2 py-1 rounded-full font-medium uppercase ${badgeStyles[status]}`}>
           {status}
         </span>
       </div>
 
-      <p className="text-[11px] text-slate-500 mb-2">
+      <p className="text-xs text-slate-500 mb-3">
         {formatShortDate(date)}
       </p>
 
-      <p className={`text-sm font-mono font-semibold ${getBalanceColor(closingBalance)}`}>
+      <p className={`text-base font-mono font-semibold ${getBalanceColor(closingBalance)}`}>
         {formatCurrency(closingBalance)}
       </p>
 
       {hasActivity && (
-        <div className="flex gap-1 mt-2">
+        <div className="flex gap-1.5 mt-3">
           {deposits.length > 0 && (
-            <span className="w-2 h-2 rounded-full bg-emerald-500" title="Deposit" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" title="Deposit" />
           )}
           {bills.length > 0 && (
-            <span className="w-2 h-2 rounded-full bg-rose-500" title="Bills" />
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" title="Bills" />
           )}
         </div>
       )}

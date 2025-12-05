@@ -33,7 +33,7 @@ export default function CalendarView({ onDayClick }: CalendarViewProps) {
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-10 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-10 gap-3 md:gap-4">
           {days.map((dayData) => (
             <DayCard
               key={dayData.day}
